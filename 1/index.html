@@ -11,26 +11,27 @@ such as the use of static singletons to store health.
 <h3>RPCs on Steam Networking</h3>
   My custom C++ game engine also uses Steam networking, though, 
   I use Valve's <a href="https://github.com/ValveSoftware/GameNetworkingSockets">GameNetworkingSockets</a>, 
-  which is a version of Steam Networking that has been separated from the rest of the Steam API. This still serves
-  as a useful testing ground since the API and usage patterns are the same across both. 
-  Though my engine implements a more generic networking solution, the overall architecture that I designed should
-  be applicable to Project Skyscraper. 
+  which is a version of Steam Networking that has been separated from the rest of the Steam API. This serves
+  as a useful testing ground since the API and usage patterns are the same across both SteamWorks and GameNetworkingSockets. 
+  Though my engine implements a more generic networking solution, the overall architecture that I designed and refined this week is
+  directly applicable to Project Skyscraper. 
 </p>
 <p>
   The architecture is as follows:
 <ul>
   <li>Byte 1: Command Code<br>
     This byte tells the recipient what type of message is represented. These values correspond to an enum. The bytes that follow depend on the message type. 
-    In RavEngine, these values are Spawn, Destroy, RPC, OwnershipToThis, OwnershipRevoked, and ClientRequestingWorldSynchronization.
+    In RavEngine, these values are Spawn, Destroy, RPC, OwnershipToThis, OwnershipRevoked, and ClientRequestingWorldSynchronization. Because Skyscraper does not use a 
+    server-authoritative model, the header byes will have different meaning there. 
   </li>
   <li>
     Bytes 2-18<br>
-    These bytes hold the entity UUID. In the case of ClientRequestingWorldSynchronization, these bytes are omitted. 
+    These bytes hold the entity UUID. In the case of ClientRequestingWorldSynchronization, these bytes are omitted. We decided to use C# GUIDs for Skyscraper, which are functionally identical to UUIDs.
   </li>
   <li>
     Bytes 19-27
     These bytes store the name of the World in the case of ClientRequestingWorldSynchronization, Spawn, and Destroy. This data is
-    required because RavEngine supports multiple active worlds at once. 
+    required because RavEngine supports multiple active worlds at once. This is the only field that is not applicable to Skyscraper, because Unity does not support multiple disjointed active worlds. 
   </li>
   <li>
     Remaining bytes<br>
@@ -40,21 +41,26 @@ such as the use of static singletons to store health.
         4 bytes: type CTTI<br>
         These bytes are a compiler-stable hash generated at compile time which allows the engine to store types in containers and send them over
         the network, something that is not otherwise possible in C++. The RPCUnpacker looks up the deserialize information based on this number when decoding fields.
+        In Skyscraper, we will take advantage of the C# reflection capabilities, meaning we will not need an analogue to CTTI. 
       </li>
       <li>
         N bytes: Payload<br>
         The remaining bytes encode the data. Currently, my serialize and deserialize method is <code>memcpy</code>, which is not great. In Project Skyscraper,
-        we use a more intelligent serialization and deserialization mechanism. 
+        we use a more intelligent serialization and deserialization mechanism built in to C#. Note that there is a fancy-but-vulnerable serializer in C# which we
+        will <u>not</u> be using in Skyscraper. Instead we are using the more basic one which functions similarly to RPCUnpacker, but with less memcpy. 
       </li>
     </ul>
   </li>
 </ul>
 These messages are routed through a centralized dispatcher which uses the header data in the message to determine what to do with the messages, and then
-route them to the proper recipient or object. 
+route them to the proper recipient or object.
 I had prototyped this design many months prior to Project Skyscraper, but I found many bugs and mistakes in my early design, and so
 I spent some time this week fixing those. At present, the engine has successfully synchronized six clients, with each client owning
-ten objects and updating their positions, which are then propagated to each other client. [Video]<br>
-Total time: 13 hrs
+ten objects and updating their positions, which are then propagated to each other client. This proof-of-concept provides valuable information about the viability
+and scalability of this networking architecture. Because I have proven that this method can work, it means we would be able to use it in Skyscraper. 
+<video src="net_demo.webm" style="width:100%"></video>
+<br>
+Total time: 13 hrs (including writing documentation and design docs)
 </p>
 <h3>Singleplayer Assumptions</h3>
 A few rules change in multiplayer mode which necesitate core changes to the game. These are:
@@ -132,7 +138,7 @@ all respond to changes to the player ID. If other programmers use these features
   decorator causes a warning to appear in the editor, to discourage their use outside of the specific places where I needed to use them to implement
   the feature. 
 </p>
-<b>Total time: 10 hrs</b>
+Total time: 10 hrs (including writing documentation and design docs)
 <h3>Other Contributions</h3>
 <p>
 As part of my initial onboarding, I added a command to set the player's health. Very simple. I also added some
