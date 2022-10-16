@@ -1,0 +1,85 @@
+<title>Skyscraper Devblog 1</title>
+10-16-2022
+
+<h2>Work this week</h2>
+<p>
+  My main task this week was to investigate and implement the upgrade to our message serialization system. Currently, to send a new message, one has to:
+  <ol>
+    <li>Subclass AbstractMessage</li>
+    <li>Implement Serialize, which involves manually writing each field of the struct into the BinaryWriter</li>
+    <li>Implement Deserialize, which involves manually reading each variable out of a Binary Reader and updating the struct's member fields</li>
+    <li>Add an entry to the MessageSerializer class to register the new class with the system</li>
+  </ol>
+  If any of these items are not properly completed, the message will not work. In particular, steps 2-4 are tedious and error-prone. If a field is added but
+Serialize and Deserialize are not updated to accomodate it in the correct order, the message will not behave properly and it can be difficult to debug.
+</p>
+<p>
+  Fortunatley, C# has runtime reflection which we can use to solve this problem. Being a dynamic language, the code can inspect itself and even make 
+  modifications while it is running. I created an initial design to leverage this as follows:
+  <ul>
+     <li>Create a new <a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/concepts/attributes/creating-custom-attributes">Attribute</a>
+       [NetSerialize] which will inject the required code in at compile time</li>
+    <li>Automatically implement Serialize by <a href="https://snipplr.com/view/18944/simple-enumeration-of-fields-of-a-struct-in-c-using-reflection">enumerating class
+      member variables</a> and write them into the Serializer in order of declaration. If a developer does not want a field to be serialized, they can mark that field with the [NoNetSerialize] attribute</li>
+     <li>Automatically implement Deserialize by doing the same as above but reading from the stream and setting the field data</li>
+     <li>Interrogate the codebase at runtime to load all classes that are [NetSerialize] and automatically register them in MessageSerializer</li>
+  </ul>
+  With this design, steps 2-4 could be eliminated entirely, meaning developers only need to worry about what data they want to send rather than the minutiae 
+of how it is sent and received. The dynamism required us to update our codebase to DotNET 4.x since DotNET Standard 2.0 did not have the C# features I needed. 
+</p>
+<p>
+   As I started implementing this I encountered a few issues. Firstly, Attributes did not work the way I had assumed they would and allow me to inject
+code into a class. However, since we require all new messages to derive from AbstractMessage, I instead could move that code from an attribute into
+AbstractMessage. The [NoNetSerialize] attribute can stay, because it is simply a marker which can be interrogated by Reflection FieldInfo.
+</p>
+<p>
+  Secondly, Reflection has negative performance implications, particularly when used in hot code paths. RavEngine uses variadic templates to generate the serialization code for each use
+  at compile time which alleviates this issue, but based on my research C# does not have a similar mechanism both due to how C# works and how our code
+  is structured. While the old hard-coded way was error-prone and fragile, it was fast because it was effectively hand-inlined. By contrast, all the 
+  field enumerating requires many dynamic lookups. 
+  I will need to profile this implementation to determine how much of a penalty Reflection causes, and based on this, how and if we need to revise the
+  implementation. Currently the code is not ready so I can't conduct those tests yet.
+</p>
+<p>
+  Serializer Total time: 19 hrs (including writing documentation and design docs)
+<ul>
+  <li>
+    Communicating and Documenting: 3 hours
+  </li>
+  <li>
+    Researching: 12 hours
+  </li>
+  <li>
+    Programming: 3 hours
+  </li>
+</ul>
+</p>
+<p>
+  I also investigated switching our scripting backend from Mono to il2cpp. Mono is an open source implementation of the C# virtual machine which Unity uses. 
+  Unfortunately it is quite slow, which is a problem for performance-sensitive code like a network backend. To rectify this problem, Unity developed
+  il2cpp, which is a C# to C++ source transpiler. In games using it, the virtual machine is eliminated entirely and all code generation is native, leading
+  to significant performance improvements. It is not as good as purpose-built C++, but in most game projects it is more than enough. However, it is not perfect
+  and not all C# features are supported. 
+</p>
+<p>
+  On our master branch without the new serialization system, il2cpp was able to compile the game without any in-game issues that I could find based on my testing. 
+  I haven't been able to test this on the serializer branch because the code is not done yet. 
+</p>
+<p>
+  Project Skyscraper uses a relatively old version of Unity (2020). In more recent versions, Unity has been experimenting with switching from Mono to
+  Microsoft's first-party DotNET Core CLR virtual machine, which has impressive near-native performance.
+  While the work is not yet done, if it is successful, it might render il2cpp obsolete on some platforms. It gets more nebulous on non-PC targets,
+  since iOS, Xbox, and potentially others do not allow executable memory, which fast VMs like CoreCLR rely on to implement hardware JIT compilation to
+  achieve their impressive performance results. 
+</p>
+<p>
+  il2cpp Total time: 2 hrs
+<ul>
+  <li>
+    Communicating and Documenting: 0.5 hours
+  </li>
+  <li>
+    Programming and testing: 1.5 hours
+  </li>
+</ul>
+</p>
