@@ -1,13 +1,142 @@
-<title>Skyscraper Devblog 2</title>
-10-16-2022
+<head>
+  <title>Skyscraper Devblog 2</title>
+	<meta charset="utf-8">
+</head>
+10-30-2022
 
 <h2>Work this week</h2>
+<h4>Reflection-based Serialization</h4>
 <p>
-  
+  This week I completed the core work on this task. This entailed retrofitting every Message that the game sends, including 
+  new ones that other team members had created while I was working on this new feature.
+  It mostly involved deleting their manual serialization and deserialization code, and marking any
+  members they did not want sent over the network with [NoNetSerialize], our new marker
+  attribute which tells the serialization system not to include that member in the
+  BinaryWriter. In addition, every Message must have a no-parameters Constructor which
+  the reflection system uses to create the Message object before it fills in the values.
+</p>
+<p>
+  With those changes, a Message now looks like this:
+</p>
+<pre>
+public class EnemiesUpdateMessage : AbstractMessage
+{
+
+	// all these properties get seriaized automatically
+    private int health;
+    private Vector2 pos;
+    private int id;
+    private int currentPathPoint;
+    private float currentPositionOnPath;
+
+	// these properties will not be serialized because of the Attribute
+    [NoNetSerialize]
+    private EnemyData[] enemyDataList;
+
+    [NoNetSerialize]
+    private EnemiesObjStorage enemiesStorage;
+
+    [NoNetSerialize]
+    private EnemySpawner enemySpawner;
+    
+    // default constructor, used when the backend needs to create an inst 
+    public EnemiesUpdateMessage()
+    {
+        // ... 
+    }
+    
+     // Executor function. This gets called automatically when the message is received
+    // by a client
+    public override void Execute()
+    {
+    	// ...
+    }
+}
+</pre>
+<p>
+  This is much easier for our developers to understand. 
 </p>
 
+<h4>Fixing the hard-coded dictionary</h4>
+<p>
+  One other large pain-point with our networking backend is the need to manually maintain a
+  large dictionary which contains every AbstractMessage, so that the backend can associate each
+  one with a numeric ID. This is important because when one endpoint receives a buffer, it has no
+  way of knowing what that buffer represents without that numeric ID in the first 4 bytes to
+  inform it of the AbstractMessage type so that it can invoke the proper deserializer and then following codepaths.
+</p>
+<pre>
+ public MessageSerializer() {
+        // add each type of serializable here
+        serializables.AddSerializable(typeof(DebugMessage));
+        serializables.AddSerializable(typeof(GameSpeedUpdateMessage));
+        serializables.AddSerializable(typeof(GlobalHealthMessage));
+        serializables.AddSerializable(typeof(TowerUpdateMessage));
+        serializables.AddSerializable(typeof(SetAutoStartMessage));
+        serializables.AddSerializable(typeof(SellTowerMessage));
+        serializables.AddSerializable(typeof(EnemiesUpdateMessage));
+        serializables.AddSerializable(typeof(GamePauseMessage));
+        serializables.AddSerializable(typeof(ValidatedRequest));
+        serializables.AddSerializable(typeof(StartWaveMessage));
+        serializables.AddSerializable(typeof(EnemySpawnerUpdateMessage));
+        serializables.AddSerializable(typeof(ChatMessage));
+        
+        // add more here ...
+ }
+</pre>
+<p>
+  Fortunatley for us, Reflection can help us here too. Instead of requiring programmers to
+  manually add their types each time they add a new one, and then resolve merge conflicts
+  when they try to merge their PRs, the backend can gather this information itself. I created a simple 
+  ReflectionUtilities class to manage this:
+</p>
+<pre>
+public static class ReflectionUtilities
+{
+    public static List&lt;Type&gt; GetTypesOfBaseType&lt;T&gt;()
+    {
+        return (from t in Assembly.GetExecutingAssembly().GetTypes()
+                where t.BaseType == typeof(T)
+                select t).ToList();
+    }
+}
+</pre>
+<p>
+GetTypesOfBase&lt;T&gt; is a Generic function which, when the game initializes, uses a LINQ query to gather all types
+in the codebase that derive from T. We can use then replace all of that AddSerializable nonsense with this: 
+</p>
+<pre>
+var allSerializable = ReflectionUtilities.GetTypesOfBaseType&lt;AbstractMessage&gt;();
+
+allSerializable.Sort((item1, item2) =>
+{
+	return string.Compare(item1.Name, item2.Name);
+});
+
+foreach (var type in allSerializable)
+{
+	serializables.AddSerializable(type);
+}
+</pre>
+<p>
+The sort is important. On different platforms, the order that the types come in may not be the same. However, the
+Serializables datastructure uses insertion order to determine type IDs. We also can't use GetHashCode because its implementation
+also varies across platforms. If the IDs for the same type did not match, then a Mac and a Windows player would not be
+able to play in the same game. The sort rectifies this by using the type Names, which are stable across platforms, and orders
+them alphabetcally. This ensures that the same IDs are generated for the same types across different platforms. I made sure to account
+  for this because I encountered the same problem when creating RavEngine's networking system. RavEngine has a type ID system
+  named CTTI which generates identifiers for types at compile time using compile-time string hashing of the type names. However, I discovered
+  that type names were not compiler-stable, so I had to create a special system that used a lot of macro hacks to
+  marshall type names into a consistent format across compilers. The experience building that made me wary of cross-platform
+  differences which while DotNET is very good at hiding them, it does not hide everything, so one must be vigillant when using 
+  more advanced features. 
+</p>
+<p>
+  With the new system, programmers only need to create their AbstractMessage class, and it will automatically get registered
+  with an ID, with all serialization and deserialization logic created for them, without needing to do anything!
+</p>
 <table>
-  <caption>Total Time: 15 hr</caption>
+  <caption>Total Time: 17 hr</caption>
   <tr>
     <th>
       Task
@@ -36,7 +165,7 @@
       2h
     </td>
      <td>
-      0h
+      –
     </td>
     <td>
       7h
@@ -44,7 +173,7 @@
   </tr>
   <tr>
     <td>
-          Fixing the hardcoded dictinary
+          Fixing the hardcoded dictionary
     </td>
      <td>
         5h 
@@ -58,5 +187,12 @@
     <td>
         8h 
     </td>
+  </tr>
+  <tr>
+    <td>Helping other members</td>
+    <td>1h</td>
+    <td>1h</td>
+    <td>–</td>
+    <td>2h</td>
   </tr>
 </table>
