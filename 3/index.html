@@ -135,58 +135,103 @@ them alphabetcally. This ensures that the same IDs are generated for the same ty
   With the new system, programmers only need to create their AbstractMessage class, and it will automatically get registered
   with an ID, with all serialization and deserialization logic created for them, without needing to do anything!
 </p>
+<h4>New API for serializing types</h4>
+One remaining wart we still had even with these improvements was the difficulty in defining how types should get serialized
+and deserialized. In Ye Old Method before any of the reflection, each class would manually implement serialization for each
+type that it wanted to send over the network, sometimes leading to duplicate serialization implementations of the same type. When
+I added the automatic serializer, all of that code moved into a large switch statement inside of AbstractMessage:
+<pre>
+switch (field.FieldType)
+{
+    case var type when type == typeof(int):
+        field.SetValue(this, reader.ReadInt32());
+        break;
+    case var type when type == typeof(bool):
+        field.SetValue(this, reader.ReadBoolean());
+        break;
+    case var type when type == typeof(string):
+        field.SetValue(this, reader.ReadString());
+        break;
+    case var type when type == typeof(float):
+        field.SetValue(this, reader.ReadSingle());
+        break;
+
+	// etc...
+}
+</pre>
+<p>
+  While this had the benefit of including a single implementation of every type, it was difficult to work with
+and would lead to merge conflicts when people wanted to add a new type to it. So I designed a new API which
+resolved each of these problems.
+</p>
+<p>
+  My goal for the new API was to enable programmers to insert a class marked with an attribute that contained
+  the implementation of the serializer for the type they wanted to add, and that they could put that class
+  wherever they wanted and the backend would be flexible enough to just handle it. I created a new marker attribute
+  named [TypeSerializer] which can be applied to any class. Then I created a new class named SerializerLibrary
+  which is responsible for loading all [TypeSerializer] classes and tracking what their purpose is. A TypeSerializer class
+  is defined as follows:
+</p>
+<pre>
+[TypeSerializer]
+static class GuidSerializer
+{
+    public static void Serialize(BinaryWriter writer, Guid value)
+    {
+        writer.Write(value.ToByteArray());
+    }
+    public static Guid Deserialize(BinaryReader reader)
+    {
+        return new Guid(reader.ReadBytes(16));
+    }
+}
+</pre>
+<p>
+  The class must be static and have two public static member functions named Serialize and Deserialize. The first
+  parameter of Serialize must be a BinaryWriter, and the second parameter is the type that the class will be processing.
+  When the game initializes, it uses a new capability of ReflectionUtilities to gather all classes that
+  have the [TypeSerializer] attribute. It then looks at the method signature of Serialize to pull the type of the
+  second parameter, and stores the class and that type as related entries in a Dictionary. Then, when SerializerLibrary
+  is asked to process a Field, it simply looks up in that dictionary what class it should use for that type,
+  and then uses .Invoke() to call the related method with the parameter data. 
+</p>
+<p>
+  With this design I accomplished all my design goals for the API. It is easy for programmers to use and involves
+  no manual registration, the backend just takes care of it for them. It has the added benefit of grouping
+  the serialization and deserialization code for a given type together so that it is easier to sanity-check. 
+  Because programmers can place these classes anywhere, adding a new type does not lead to merge conflicts in AbstractMessage
+  like in the past. 
+</p>
+<hr>
 <table>
-  <caption>Total Time: 17 hr</caption>
+  <caption>Total Time: 24 hr</caption>
   <tr>
-    <th>
-      Task
-    </th>
-     <th>
-      Programming
-    </th>
-    <th>
-      Communicating
-    </th>
-     <th>
-      Researching
-    </th>
-    <th>
-      Task Total
-    </th>
+    <th>Task</th>
+     <th>Programming</th>
+    <th>Communicating</th>
+     <th>Researching</th>
+    <th>Task Total</th>
   </tr>
   <tr>
-    <td>
-          Complete reflection-based serialize
-    </td>
-    <td>
-      5h
-    </td>
-    <td>
-      2h
-    </td>
-     <td>
-      –
-    </td>
-    <td>
-      7h
-    </td>
+    <td>Complete reflection-based serialize</td>
+    <td>5h</td>
+    <td>2h</td>
+     <td>–</td>
+    <td>7h</td>
   </tr>
   <tr>
-    <td>
-          Fixing the hardcoded dictionary
-    </td>
-     <td>
-        5h 
-    </td>
-     <td>
-        1h 
-    </td>
-     <td>
-        2h 
-    </td>
-    <td>
-        8h 
-    </td>
+    <td>Fixing the hardcoded dictionary</td>
+     <td>5h</td>
+     <td>1h</td>
+     <td>2h</td>
+    <td>8h</td>
+  </tr>
+  <tr>
+    <td>New API for declaring Serializers</td>
+    <td>4h</td>
+    <td>2h</td>
+    <td>1h</td>
+    <td>7h</td>
   </tr>
   <tr>
     <td>Helping other members</td>
