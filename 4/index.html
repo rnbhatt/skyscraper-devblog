@@ -1,0 +1,91 @@
+<head>
+  <title>Skyscraper Devblog 4</title>
+	<meta charset="utf-8">
+</head>
+
+11-13-2022
+
+<h2>Work this week</h2>
+<h4>Disable Save System in Multiplayer</h4>
+This was a longstanding issue on the Jira. In multiplayer, we do not want the save system to be active, because of balancing and complexity issues. 
+For example, what would happen if you saved with one set of players, and then loaded with another? Fortunatley this was a fairly easy issue
+to solve, I ended up just disabling the Save button in the pause menu if in a multiplayer game. There remain some UX issues like the fact that
+save icons appear on Free Play modes when starting a multiplayer game, but I think these will be resolved when our designer completes their overhaul
+of that screen.
+
+<h4>Fix performance issue in game loop</h4>
+<p>
+Another programmer noticed while working on the game that when in multiplayer, later waves would lead to lag spikes and low frame rates, even 
+on very powerful hardware. We pair-programmed to debug and resolve the issue.
+</p>
+<p>
+  We used Unity's profiler to detect where the slowdowns were coming from. In this case, it was the fault of a single script, GameLoopMessageSender.cs.
+  In later waves, it was sometimes taking over 200ms per frame! Unfortunatley, Unity's profiler does not elaborate what specifically inside 
+  that script was taking up all the time, but fortunatley, Unity offers a very easy API to emit custom profiler information in the graph. All one needs to do is
+  surround the code they want to measure, like so:
+</p>
+<pre>
+  Profiler.BeginSample("Name the block");
+  // code to time goes here
+  Profiler.EndSample();
+</pre>
+<p>
+  which when run, will cause blocks to appear in the profiler which indicate how long those specific chunks of code took to execute. I placed 5 of these
+  in GameLoopMessageSender.cs, around each of the major tasks it completed in Update. In the profiler, we saw that one of them was taking up
+  all of the time. It was the part of the code responsible for sending the enemy death synchronization events. 
+</p>
+<p>
+  The caused turned out to be a simple programming error that is easy to make. 
+</p>
+<pre>
+for(int i = 0; i < deadEnemiesList.Count; ++i) {
+    int id = deadEnemiesList[i];
+    lobby.Send(new EnemyDespawnMessage(id));
+    indicesToDelete.Add(i);
+}
+foreach(int i in indicesToDelete) {
+    deadEnemiesList.Remove(i);
+}
+</pre>
+<p>
+  Do you see it? The first for loop adds indices to a list, and the second for loop uses those indices to remove items from a container. However, this code
+  does not work as intended. When one calls Remove(i), the underlying container shifts elements, resulting in all future indices no longer matching.
+  If Remove() is passed an index that doesn't exist, it silently fails. The result of this is that deadEnemiesList is not cleared each time
+  the synchronization happens, so over time it slowly grows in size until the first for loop ends up taking hundreds of miliseconds to run. The fix was very
+  simple - just call deadEnemiesList.Clear() instead of making another container and removing elements by index. The team member who wrote this 
+  intended for the container to be cleared anyways.
+</p>
+
+
+<hr>
+<table>
+  <caption>Total Time: 6.5 hr</caption>
+  <tr>
+    <th>Task</th>
+     <th>Programming</th>
+    <th>Communicating</th>
+     <th>Researching</th>
+    <th>Task Total</th>
+  </tr>
+  <tr>
+    <td>Disable Save System in Multiplayer</td>
+    <td>2h</td>
+    <td>–</td>
+    <td>–</td>
+    <td>2h</td>
+  </tr>
+  <tr>
+    <td>Fix performance issue in game loop</td>
+     <td>1h</td>
+     <td>–</td>
+     <td>–</td>
+    <td>1h</td>
+  </tr>
+  <tr>
+    <td>Helping other members, Industry Playtest</td>
+    <td>2h</td>
+    <td>1.5h</td>
+    <td>–</td>
+    <td>2.5h</td>
+  </tr>
+</table>
