@@ -57,10 +57,34 @@ foreach(int i in indicesToDelete) {
 </p>
 
 <h4>Waiting Room</h4>
+<p>
+This task was the first major inter-disciplinary effort that I was part of during project Skyscraper. For all of my past tasks, I was creating 
+APIs and dealing with backend internals, so I rarely interacted with the UI. In this case, I was tasked with implementing functionality for a work-in-progress 
+waiting room UI. The purpose of this UI is to serve as a room for the host to invite a Steam friend to the game, configure difficulty options, 
+and change avatars. Specifically, I took on implementing pop-up dialogs and the Steam Friends overlay.
+</p>
+<p>
+Our designer worked on adding the art assets for each dialog. Since our designer (understandably) does not have much experience in Unity, I 
+cleaned up the dialogs by ensuring they scaled properly and converted the static images into interactive button elements. I then wrote a 
+generic script to drive dialogs.
+</p>
+<p>
+The generic DialogBase class offers two API methods: Show and Dismiss. Show() enables the subobject which causes the dialog to appear on-screen and 
+become interactive. Dismiss() disables the subobject so the dialog disappears and becomes non-interactive. The class also exposes two UnityEvents, one for
+Confirm Pressed and the other for Cancel Pressed. This enables a client programmer to hook up their own functions to the dialog buttons easily, and 
+make the dialogs do different things in different plaecs. When a button is pressed, the dialog also calls Dismiss() on itself automatically, which also
+un-registers anything attached to either UnityEvent, making reuse cleaner. 
+</p>
+<p>
+All dialogs except for the Invite Players dialog use DialogBase unmodified. In the case of Invite Players, it does not follow a simple Confirm-Cancel flow,
+so I subclassed DialogBase to add custom behavior. When the "Confirm" button is pressed, I added the call to invoke the Steam Friends overlay. We don't want to
+dismiss the dialog in this case because the player may want to summon that overlay again. At present, the call to display the Steam Friends overlay does
+nothing, because we have not yet registered our game with Valve yet. We plan to submit a build to Valve next weekend. 
+</p>
 
 <hr>
 <table>
-  <caption>Total Time: 22.5 hr</caption>
+  <caption>Total Time: 24.5 hr</caption>
   <tr>
     <th>Task</th>
      <th>Programming</th>
@@ -86,8 +110,8 @@ foreach(int i in indicesToDelete) {
    <td>Waiting Room</td>
      <td>6h</td>
      <td>7h</td>
-     <td>–</td>
-    <td>13h</td>
+     <td>2h</td>
+    <td>15h</td>
   </tr>
   <tr>
     <td>Helping other members, Industry Playtest</td>
