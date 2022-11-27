@@ -17,9 +17,9 @@ We noticed a few issues when trying to generate builds to give to designers or p
 <p>
 	The vast majority of our designers use Macs, but our developers mostly use Windows (I personally opt to use a CAEN workstation), so we didn't catch
 	the fact that our macOS builds didn't work at all. When our Designers tried to use the macOS builds that I uploaded to our Build Depot
-	confluence page, the would get an error message like this:
+	confluence page, they would get an error message like this:
 </p>
-<img src="macbroken.png">
+<img src="macbroken.png" style="width:100%;max-width:300px">
 <p>
 	It turned out that the process of creating a zip file out of mac builds was corrupting them. Neither Keka (a third party app I use to make 7zip files on 
 	macOS) or the built in Archive Utility could zip the game such that it would survive being unzipped. The reason was the zipping process was invalidating
@@ -39,9 +39,10 @@ We noticed a few issues when trying to generate builds to give to designers or p
 	repeat those steps manually every time we generate a new macOS build. 
 	I think this is something that Unity should be doing for us, especially since they control the entire build process. 
 	Unreal has a section in its project settings where one can enter code signing details so that it can handle the entire process fully automatically, and
-	projects that use my own engine RavEngine can enable these features and set a development Team in their CMakeLists.txt. 
+	projects that use my own engine RavEngine can enable these features and set a development Team in their CMakeLists.txt. The fact that Unity
+	does not have an automatic solution means that we cannot create a CI autobuild service for the studio for mac builds. 
 </p>
-<b>Issue 2: steam_appid.txt
+<b>Issue 2: steam_appid.txt</b>
 <p>
 	When creating development builds of games that use the Steam IPC API, a file named steam_appid.txt must be present next to the executable. This file contains the SteamWorks 
 	application ID, which Steam then uses to determine what APIs and services are available to the game, and in what fashion. Unity's default build
@@ -59,11 +60,11 @@ We noticed a few issues when trying to generate builds to give to designers or p
 	finished writing the Xcode project, not when the Xcode build has completed, so it's useless for copying steam_appid.txt. There is a way 
 	to modify the generated Xcode project but it comes with a big caveat. The API to modify Xcode projects is exposed through UnityEditor.iOS.Xcode, which requires all team members to install the iOS build support, even though
 	our game does not ship on iOS. I decided that it wasn't worth the management overhead for configuring new development machines to add 
-	an automatic copier for mac builds, so I instead wrote a documentation mage on Confluence which explains how to copy the txt file manually. 
+	an automatic copier for mac builds, so I instead wrote a documentation page on Confluence which explains how to copy the txt file manually. 
 </p>
 <p>
 	The good news is that the final Steam release of the game does not need to bother with steam_appid.txt at all, because Steam knows the App ID
-	when it launches the game from the library page. So these issues are isolated to internal users running the game manually and not from the Steam interface. 
+	when it launches the game from the library page. So these issues are isolated to internal users running the game manually. 
 </p>
 
 <hr>
@@ -88,6 +89,6 @@ We noticed a few issues when trying to generate builds to give to designers or p
     <td>1h</td>
     <td>-</td>
     <td>2h</td>
-    <td>3</td>
+    <td>3h</td>
   </tr>
 </table>
