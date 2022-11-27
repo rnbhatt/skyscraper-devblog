@@ -10,12 +10,20 @@
 <p>
 This week was our big design-implementation convergence for the Waiting Room screen. I pair-programmed with our designer and the other developer assigned
 to this task to finalize the screen. In particular, we added an automatic refresh for the room list so that players can easily join each others rooms. 
-We also ran a variety of tests to ensure that rooms would appear and dissapear correctly, and that players could join and leave without other errors
-appearing. I also added a big error message across the main menu if steam did not initialize properly, to assist with ironing out steam init errors. 
+We ran a variety of tests to ensure that lobbies would appear and dissapear correctly, and that players could join and leave without other errors
+appearing. I also added a big error message across the main menu if Steam did not initialize properly, to assist with ironing out Steam init errors. 
 The other teams also got their features in, so we now have level partitioning and notifications for joining and leaving. 
 </p>
 
 <img src="together.jpg" style="width:100%; max-width:300px">
+<p>
+I suggested that we add the ability to create a hidden room (joinable only via Join Game on a player's Steam Friends list), or add a room password, so that players can opt to not have random people join their 
+room when they don't want that. Hidden rooms should not be too difficult to do since it appears that Steam has the ability to set lobby visibility
+permissions, but that did not make it into this sprint. I also think we should give the other team members access to the Steam page for the game, since currently
+only the leads can view it, which means we have to use SpaceWar (Valve's game ID for developers creating new Steam games) when testing with other team members and that means
+the Steam in-game overlay doesn't work. We will want the ability to test the overlay during our final convergence. 
+</p>
+
 
 <h3> Build Pipeline </h3>
 <p>
