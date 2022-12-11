@@ -66,7 +66,8 @@ Our game needed to have Hardened Runtime enabled so that the OS would even launc
   cannot load any code that was not codesigned with the same ID as the application. Our mac build was codesigned with my ID, but the Steam dylib was signed with Valve's ID, so the
   OS did not permit us to load it. Fortunately, we can enable exceptions to the security rules in the Hardened Runtime options in Xcode. I tried enabling "Disable Library Validation" 
   which stated that it disabled the same-signature requirement but that didn't fix the error. I enabled all of the runtime security exceptions and with that the macOS build
-  was able to initialize Steam. I didn't have time to figure out which combination of settings actually fixed it so I just left it like that. 
+  was able to initialize Steam. I didn't have time to figure out which combination of settings actually fixed it so I just left it like that. This is still not any less secure
+	than the Windows or Linux versions of the game, because those operating systems allow all of these permissions for all programs by default. 
 </p>
 <img src="security.png" style="width:100%; max-width:700px">
 <p>
