@@ -74,7 +74,7 @@ Our game needed to have Hardened Runtime enabled so that the OS would even launc
   <b>Tower costs became desynchronized as more games were played</b><br>
   The previous developers used Unity Scriptable Objects to define how tower costs changed based on the difficulty of the game, which worked well then. However, when we 
   added multiplayer, we added a cost scalar so that the game would not be too easy with two players. Unfortunately, we discovered one of the footguns with Scriptable Objects. 
-  We applied the multipler to the scriptable object directly, thinking that it would get reset when we reloaded the level. But not only are Scriptable Objects global statics, but
+  We applied the multipler to the scriptable object directly, thinking that it would get reset when we reloaded the level. But not only are Scriptable Objects global statics, 
   they persist changes <i>between game runs in the editor</i> and they save their state changes to the Asset file on disk! Global, mutable, persistant state. 
   This caused the multipliers to stack between games, which caused the tower prices to increase with each game played, and we spent a long time confused about why
   the values in the scriptable object were not getting reset when we stopped and restarted the game in-editor. Only when we closed Unity and git-reset our changes did we
